@@ -1,178 +1,106 @@
 # Marcel — Early Risk Prediction Agent
 
-**BSc (Hons) Computing [Top-up] — CMP600 Dissertation Artefact**
-Author: Marcel Bucur (Student ID 2310-111665)
+This is the code for my BSc (Hons) Computing top-up dissertation. Module CMP600.
 
-> A no-code-experience Early Warning System (EWS) for Higher Education that flags students at risk of underachieving or dropping out, based on attendance, assessment performance, and engagement signals.
+The project is a web app that takes a CSV of student data (attendance, marks, engagement, optionally tutor comments) and flags students who look like they might be heading for trouble. It's meant to be usable by a tutor with no technical background — upload a file, click through, get a dashboard with explanations next to each flag.
 
-**Live demo:** https://marcel.deansygrove.co.uk
-Demo login: `marcel@esl.ac.uk` / `Marcel2026!` (the *Load Sample Data* button works without login)
+Live version: https://marcel.deansygrove.co.uk
+There's a "Load Sample Data" button on the front page so you don't have to sign in to have a look.
 
----
+## Why I built it
 
-## Dissertation Context
+The dissertation question was basically: can you build a usable early warning system for higher education without writing any code? Spoiler: not really, at least not the whole thing. But you can build something that *feels* no-code to the tutor, and that's what's actually useful in practice.
 
-### Research question
+The four sub-questions I tried to answer:
 
-> *How feasible is it to create and implement a no-code early risk prediction agent that can successfully predict at-risk students?*
+- What signals are most predictive of students being at risk?
+- How would you design something like this with no-code tools?
+- Is the result usable, accurate, and practical for institutions?
+- Where does pure no-code stop working?
 
-### Sub-questions
+The last one turned out to be the most interesting. I started with an n8n workflow doing everything, and it broke down in four specific places: variable CSV formats, interactive dashboards, PDF reports, and per-user state. So I pivoted to a hybrid setup. Coded React and PHP under the hood, no-code-feeling UX on top.
 
-| # | Sub-question |
-|---|--------------|
-| a | What student information attributes are most useful for early risk prediction? |
-| b | How can we design, develop, and automate an early warning system through no-code interfaces? |
-| c | How usable, effective, and feasible is the prototype from the institution's perspective? |
-| d | What difficulties are there in creating a predictive model with no-code? |
+## What's in here
 
-### Contribution
+- `app/` — the React + TypeScript front-end (Vite, Tailwind, Chart.js, jsPDF). This is what the tutor actually uses.
+- `register/` — the PHP back-end for sign-up, login, and saved reports. Plain MVC, no framework.
+- `generate_data.py` — generator for the synthetic datasets. Five behavioural archetypes from the literature, four cohort sizes. Deterministic, so the evaluation is reproducible.
+- `template/` — a blank CSV showing the schema an institution would upload.
+- `Docs/` — module materials.
 
-The dissertation makes two contributions to the no-code literature:
+I evaluated against the synthetic data only. I never had access to real student outcomes, and I wouldn't have wanted to without a proper ethics process anyway. The dissertation is honest about that. Real-world accuracy would need a longitudinal pilot, which is the first item in the future-work list.
 
-1. **The user-experience-layer / build-layer distinction** — the no-code claim is situated where the promise of accessibility actually resides (the UX), rather than at the build layer where technical compromises occur.
-2. **A four-limit account of pure no-code** — variable inputs, interactive UI, rich document generation, and per-user persistent state are the four axes along which pure workflow-orchestration platforms (e.g. n8n) meet their match.
+## Running it locally
 
----
-
-## Architecture
-
-A **hybrid architecture** — pure no-code UX on top of a coded build layer:
-
-```
-                ┌──────────────────────────────────────────┐
-   Tutor  ──>   │  React 19 + TypeScript + Vite frontend   │   <── No-code experience
-   (upload      │   • Upload CSV  • Confirm mapping        │       (upload → click → view → save)
-    CSV)        │   • Dashboard (Overview / Students /     │
-                │     Export)  • Teacher Review            │
-                └─────────────────┬────────────────────────┘
-                                  │
-                ┌─────────────────▼────────────────────────┐
-                │  Risk Engine (TypeScript)                │   <── Coded build layer
-                │   Attendance 35% · Assessment 35% ·       │       (literature-derived weights)
-                │   Engagement 30%  (or 30/30/20/20 + AI)   │
-                │   + trend penalty + streak bonus +        │
-                │   plain-English explanation list          │
-                └─────────────────┬────────────────────────┘
-                                  │
-                ┌─────────────────▼────────────────────────┐
-                │  PHP registration & persistence layer    │
-                │   (register/  — MVC, MySQL)              │
-                └──────────────────────────────────────────┘
-```
-
-### Tech stack
-
-| Layer | Tools |
-|---|---|
-| Frontend | React 19, TypeScript, Vite 8, Tailwind v4, Chart.js, jsPDF, PapaParse |
-| Backend | PHP (custom MVC), MySQL |
-| AI (optional) | Google Gemini (sentiment analysis of tutor comments) |
-| Hosting | Commodity shared web hosting |
-
----
-
-## Repository structure
-
-```
-.
-├── app/                  React + TypeScript frontend (risk engine, dashboard, PDF/CSV export)
-├── register/             PHP registration & persistence layer (MVC)
-├── generated/            Synthetic student datasets (regenerable from generate_data.py)
-├── template/             Real-world CSV template for institutional uploads
-├── Docs/                 ESL module guide, brief, template, cover page
-├── generate_data.py      Deterministic synthetic-data generator (five archetypes × four cohort sizes)
-└── README.md             This file
-```
-
----
-
-## Getting started
-
-### Frontend
+Front-end:
 
 ```bash
 cd app
 npm install
-npm run dev          # development server (http://localhost:5173)
-npm run build        # production build into app/dist
+npm run dev
 ```
 
-### Synthetic-data generation
+That spins up Vite on `http://localhost:5173`. Drop in any CSV matching the template, or hit "Load Sample Data".
+
+Synthetic data generator:
 
 ```bash
 python3 generate_data.py
-# Produces CSVs under generated/ for the five literature-inspired archetypes
 ```
 
-### Backend (register/)
+Outputs CSVs under `generated/`. They're regenerated fresh every time, so they're in `.gitignore` and not committed.
 
-Deploy `register/` to any LAMP/LEMP host. Edit `register/config.php` for DB credentials.
+Back-end (`register/`) is a plain PHP app. Copy `register/config.example.php` to see which environment variables it expects (DB credentials, Gemini API key if you want sentiment analysis), set them in your hosting environment, and drop the folder on any LAMP host. I used 20i shared hosting.
 
----
+## How the scoring works
 
-## Risk Engine — Feature Weights
+I went with explicit, interpretable weights rather than a learned model. The literature was clear enough on which signals matter that hard-coded weights were defensible, and using them meant every flag could come with a plain-English explanation. That was the whole point.
 
-The engine is interpretable: every score is assigned a plain-English explanation list, with no hidden ML model.
+Without the AI sentiment add-on:
 
-| Feature | Weight (no AI) | Weight (with AI sentiment) | Source |
-|---|---|---|---|
-| Attendance | 35% | 30% | Hu (2014); Bañeres et al. (2020) |
-| Assessment performance | 35% | 30% | Junejo et al. (2024); Romero & Ventura (2020) |
-| Engagement | 30% | 20% | Viberg et al. (2018) |
-| AI sentiment (tutor comments) | — | 20% | Sajja et al. (2023); Anghel et al. (2025) |
+- 35% attendance
+- 35% assessment
+- 30% engagement
 
-Plus an explicit **trend penalty** (direction-of-travel) and **streak bonus**, motivated by Hu (2014) and Zambrano, Lara & Romero (2024).
+With Gemini sentiment analysis turned on:
 
----
+- 30% attendance
+- 30% assessment
+- 20% engagement
+- 20% sentiment of tutor comments
 
-## Project Management & Version Control
+Plus a trend penalty (for students whose numbers are sliding even when the absolute level is fine) and a streak bonus (for consistent performance). The trend bit matters more than I expected. Hu (2014) and a few others showed direction of travel is as informative as the level itself.
 
-This project is managed agile-style. The GitHub Project board for this repository contains the sprint plan, backlog, in-progress work, retrospectives, and milestones:
+## Project management
 
-**Project board:** https://github.com/users/expertul76/projects/3
+The agile board with sprints, planning cards and retrospectives is here:
+https://github.com/users/expertul76/projects/3
 
-### Sprints
+Four sprints:
 
-| Sprint | Focus | Milestone |
-|---|---|---|
-| Sprint 1 | Research & Proposal | M1 — Proposal approved |
-| Sprint 2 | Design & Risk Engine | M2 — Risk engine working in n8n prototype |
-| Sprint 3 | Hybrid Pivot & UI | M3 — Hybrid architecture deployed |
-| Sprint 4 | Evaluation & Write-up | M4 — Evaluation complete · M5 — Submission |
-
-The Trello/Jira-style board on GitHub Projects mirrors the agile management requirement of the CMP600 brief (Section *Project Planning and Design*).
-
----
-
-## Evaluation
-
-Evaluation is against **synthetic data only** (five literature-derived behavioural archetypes × four cohort sizes), per the dissertation's stated ethical position (Section 3.9). No claim of real-world predictive accuracy is made without longitudinal validation; this is named as the dissertation's primary future-work item (Section 7.5).
-
----
+1. Research and proposal
+2. Risk engine design (the n8n prototype that didn't survive contact with reality)
+3. Hybrid pivot and UI build
+4. Evaluation and write-up
 
 ## Ethics
 
-- Synthetic data only (no real student records)
-- Demographic blindness in the risk engine
-- Human-in-the-loop via the *Teacher Review* control
-- Forced transparency of explanations (no black-box outputs)
+- Synthetic data only. No real student records were touched.
+- The risk engine doesn't see demographics. I wouldn't trust myself to do that responsibly without a much bigger study.
+- There's a "Teacher Review" control wherever a flag appears, so the tutor can override or annotate. Human in the loop, not human rubber-stamp.
+- Every flag has an explanation. No black boxes.
+
+## What I'd do differently
+
+If I had another semester:
+
+- Get real outcome data and learn the weights from it instead of hard-coding them.
+- Externalise the engagement keyword list so institutions could adapt it.
+- Write Moodle / Canvas / Blackboard connectors so the tutor doesn't have to upload anything manually.
+- Add an equity audit that reports flag distribution across demographics without acting on them.
+
+Next-version problems. What's here is what the dissertation submitted.
 
 ---
 
-## References
-
-Full reference list is in the dissertation document. Key papers driving the design:
-
-- Hu (2014) — *Attendance and behavioural data as leading indicators of risk*
-- Viberg et al. (2018) — *Learning analytics deployment gap*
-- Bañeres et al. (2020) — *Accelerating identification of students-at-risk*
-- Romero & Ventura (2020) — *Educational data mining: prediction methods*
-- Khaleghi Hozhabrasa (2025) — *No-code AI tools: capabilities and limits*
-- Liwanag, Ebardo & Cheng (2025) — *Systematic review of no-code AI*
-- Morales Tirado, Mulholland & Fernández (2024) — *Operationalisable AI in learning analytics*
-
----
-
-## License
-
-Academic artefact submitted for the BSc (Hons) Computing [Top-up] dissertation (CMP600). All rights reserved by the author unless otherwise stated.
+Marcel Bucur — student ID 2310-111665
