@@ -2,7 +2,6 @@
 
 **BSc (Hons) Computing [Top-up] — CMP600 Dissertation Artefact**
 Author: Marcel Bucur (Student ID 2310-111665)
-Module Tutor: Anjuna Deva Raj
 
 > A no-code-experience Early Warning System (EWS) for Higher Education that flags students at risk of underachieving or dropping out, based on attendance, assessment performance, and engagement signals.
 
